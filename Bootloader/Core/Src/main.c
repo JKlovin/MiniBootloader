@@ -1,0 +1,528 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * <h2><center>&copy; Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.</center></h2>
+  *
+  * This software component is licensed by ST under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "usart.h"
+#include "gpio.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include <string.h>
+
+#include "bootloader.h"
+#include "flash.h"
+
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
+static uint32_t Boot_ResetFlags;
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+/* USER CODE BEGIN PFP */
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+static void Boot_Print(const char *Text);
+static void Boot_PrintHex16(uint16_t Value);
+static void Boot_PrintHex32(uint32_t Value);
+
+static void Boot_ShowMenu(void);
+static void Boot_ShowInfo(void);
+static void Boot_FlashDemo(void);
+
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
+	uint8_t Command;
+  HAL_StatusTypeDef Status;
+	
+	/* 在 HAL 初始化之前获取复位标志 */
+	Boot_ResetFlags = RCC->CSR;
+
+	/* 清除标志，便于下次判断 */
+	__HAL_RCC_CLEAR_RESET_FLAGS();
+	
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART1_UART_Init();
+  /* USER CODE BEGIN 2 */
+	printf("Reset Flags = 0x%08lX\r\n",
+				 (unsigned long)Boot_ResetFlags);
+
+	if (Boot_ResetFlags & RCC_CSR_SFTRSTF)
+			printf("Software Reset\r\n");
+
+	if (Boot_ResetFlags & RCC_CSR_IWDGRSTF)
+			printf("IWDG Reset\r\n");
+
+	if (Boot_ResetFlags & RCC_CSR_WWDGRSTF)
+			printf("WWDG Reset\r\n");
+
+	if (Boot_ResetFlags & RCC_CSR_PORRSTF)
+			printf("Power Reset\r\n");
+
+	if (Boot_ResetFlags & RCC_CSR_PINRSTF)
+			printf("NRST Pin Reset\r\n");
+
+	Boot_ShowMenu();
+	
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+		/* 等待串口输入一个字符 */
+		Status = HAL_UART_Receive(&huart1,&Command,1U,100U);
+
+		if (Status != HAL_OK)
+		{
+				continue;
+		}
+
+		switch (Command)
+		{
+				case 't':
+				case 'T':
+						Boot_FlashDemo();
+						break;
+				case 'j':
+				case 'J':
+						if (Boot_IsAppValid() != 0U)
+						{
+								Boot_Print("Jump to APP...\r\n");
+								JumpToApp();
+
+								/* 只有跳转失败才会返回 */
+						}
+						else
+						{
+								Boot_Print("APP Invalid!\r\n");
+						}
+						break;
+				case 'i':
+				case 'I':
+						Boot_ShowInfo();
+						break;
+				case 'h':
+				case 'H':
+						Boot_ShowMenu();
+						break;
+				case '\r':
+				case '\n':
+						break;
+				default:
+						Boot_Print("Unknown Command!\r\n");
+						break;
+		}
+		Boot_Print("\r\nCommand > ");
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/* USER CODE BEGIN 4 */
+
+/* =========================================================
+ * 1. 串口发送字符串
+ * ========================================================= */
+
+static void Boot_Print(const char *Text)
+{
+    uint16_t Length;
+
+    Length = (uint16_t)strlen(Text);
+
+    HAL_UART_Transmit(
+        &huart1,
+        (uint8_t *)Text,
+        Length,
+        HAL_MAX_DELAY
+    );
+}
+
+
+/* =========================================================
+ * 2. 打印16位十六进制数
+ * ========================================================= */
+
+static void Boot_PrintHex16(uint16_t Value)
+{
+    char Text[7] = "0x0000";
+    const char Hex[] = "0123456789ABCDEF";
+    uint32_t i;
+
+    for (i = 0U; i < 4U; i++)
+    {
+        Text[2U + i] =
+            Hex[(Value >> (12U - 4U * i)) & 0x0FU];
+    }
+
+    Boot_Print(Text);
+}
+
+
+/* =========================================================
+ * 3. 打印32位十六进制数
+ * ========================================================= */
+
+static void Boot_PrintHex32(uint32_t Value)
+{
+    char Text[11] = "0x00000000";
+    const char Hex[] = "0123456789ABCDEF";
+    uint32_t i;
+
+    for (i = 0U; i < 8U; i++)
+    {
+        Text[2U + i] =
+            Hex[(Value >> (28U - 4U * i)) & 0x0FU];
+    }
+
+    Boot_Print(Text);
+}
+
+
+/* =========================================================
+ * 4. 显示串口菜单
+ * ========================================================= */
+
+static void Boot_ShowMenu(void)
+{
+    Boot_Print("\r\n");
+    Boot_Print("========== BootloaderFlash ==========\r\n");
+    Boot_Print("t : Flash erase/write test\r\n");
+    Boot_Print("j : Jump to APP\r\n");
+    Boot_Print("i : Flash information\r\n");
+    Boot_Print("h : Show menu\r\n");
+    Boot_Print("=====================================\r\n");
+    Boot_Print("Command > ");
+}
+
+
+/* =========================================================
+ * 5. 显示 Flash 分区信息
+ * ========================================================= */
+
+static void Boot_ShowInfo(void)
+{
+    Boot_Print("\r\n[Flash Information]\r\n");
+
+    Boot_Print("Bootloader : ");
+    Boot_PrintHex32(0x08000000UL);
+    Boot_Print(" - ");
+    Boot_PrintHex32(0x08003FFFUL);
+    Boot_Print("\r\n");
+
+    Boot_Print("APP        : ");
+    Boot_PrintHex32(APP_FLASH_ADDR);
+    Boot_Print(" - ");
+    Boot_PrintHex32(APP_FLASH_END_ADDR - 1UL);
+    Boot_Print("\r\n");
+
+    Boot_Print("Test Area  : ");
+    Boot_PrintHex32(BOOT_TEST_FLASH_ADDR);
+    Boot_Print(" - ");
+    Boot_PrintHex32(BOOT_TEST_FLASH_END - 1UL);
+    Boot_Print("\r\n");
+
+    Boot_Print("APP Valid  : ");
+
+    if (Boot_IsAppValid() != 0U)
+    {
+        Boot_Print("YES\r\n");
+    }
+    else
+    {
+        Boot_Print("NO\r\n");
+    }
+}
+
+
+/* =========================================================
+ * 6. Flash 擦除及写入测试
+ * ========================================================= */
+static void Boot_FlashDemo(void)
+{
+    uint8_t Buffer[128];
+
+    uint8_t OddBuffer[5] =
+    {
+        0x11U,
+        0x22U,
+        0x33U,
+        0x44U,
+        0x55U
+    };
+
+    uint32_t i;
+    HAL_StatusTypeDef Status;
+
+    Boot_Print("\r\n[Flash Test Start]\r\n");
+
+    /* 1. 构造128字节测试数据 */
+    for (i = 0U; i < sizeof(Buffer); i++)
+    {
+        Buffer[i] = (uint8_t)(i ^ 0x5AU);
+    }
+
+    /* 2. 擦除测试区域 */
+    Status = Boot_FlashErase(
+        BOOT_TEST_FLASH_ADDR,
+        BOOT_TEST_FLASH_SIZE
+    );
+
+    if (Status != HAL_OK)
+    {
+        Boot_Print("Flash Erase FAIL!\r\n");
+        return;
+    }
+
+    Boot_Print("Flash Erase PASS!\r\n");
+
+    /* 3. 连续写入128字节 */
+    Status = Boot_FlashWrite(
+        BOOT_TEST_FLASH_ADDR,
+        Buffer,
+        sizeof(Buffer)
+    );
+
+    if (Status != HAL_OK)
+    {
+        Boot_Print("Flash Write FAIL!\r\n");
+        return;
+    }
+
+    Boot_Print("Flash Write PASS!\r\n");
+
+    /* 4. 读回验证128字节 */
+    Status = Boot_FlashVerify(
+        BOOT_TEST_FLASH_ADDR,
+        Buffer,
+        sizeof(Buffer)
+    );
+
+    if (Status != HAL_OK)
+    {
+        Boot_Print("Flash Verify FAIL!\r\n");
+        return;
+    }
+
+    Boot_Print("Flash Verify PASS!\r\n");
+
+    /* 5. 读取第一个半字 */
+    Boot_Print("First : ");
+
+    Boot_PrintHex16(
+        *(volatile uint16_t *)
+        BOOT_TEST_FLASH_ADDR
+    );
+
+    Boot_Print("\r\n");
+
+    /* 6. 读取最后一个半字 */
+    Boot_Print("Last  : ");
+
+    Boot_PrintHex16(
+        *(volatile uint16_t *)
+        (BOOT_TEST_FLASH_ADDR + 126U)
+    );
+
+    Boot_Print("\r\n");
+
+    /*
+     * 7. 测试奇数字节长度
+     *
+     * 使用偏移128字节的另一块已擦除空间，
+     * 避免覆盖前面的128字节测试数据。
+     */
+    Status = Boot_FlashWrite(
+        BOOT_TEST_FLASH_ADDR + 128U,
+        OddBuffer,
+        sizeof(OddBuffer)
+    );
+
+    if (Status != HAL_OK)
+    {
+        Boot_Print("Odd Write FAIL!\r\n");
+        return;
+    }
+
+    /* 8. 校验奇数字节 */
+    Status = Boot_FlashVerify(
+        BOOT_TEST_FLASH_ADDR + 128U,
+        OddBuffer,
+        sizeof(OddBuffer)
+    );
+
+    if (Status != HAL_OK)
+    {
+        Boot_Print("Odd Verify FAIL!\r\n");
+        return;
+    }
+
+    /* 9. 验证最后一个半字补FF */
+    if (*(volatile uint16_t *)
+        (BOOT_TEST_FLASH_ADDR + 132U) != 0xFF55U)
+    {
+        Boot_Print("Odd Padding FAIL!\r\n");
+        return;
+    }
+
+    Boot_Print("Odd Write PASS!\r\n");
+
+    /* 10. 检查 Bootloader 擦除保护 */
+    Status = Boot_FlashErase(
+        0x08000000UL,
+        1024U
+    );
+
+    if (Status != HAL_ERROR)
+    {
+        Boot_Print("Boot Protection FAIL!\r\n");
+        return;
+    }
+
+    Boot_Print("Boot Protection PASS!\r\n");
+
+    Boot_Print("[Flash Test Complete]\r\n");
+}
+
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
+}
+
+#ifdef  USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

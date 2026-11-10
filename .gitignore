@@ -1,0 +1,16 @@
+# Keil 编译生成文件
+**/Objects/
+**/Listings/
+
+# Keil 本地用户配置
+*.uvoptx
+*.uvguix.*
+
+# 临时文件
+*.bak
+*.tmp
+*.log
+
+# 操作系统缓存
+Thumbs.db
+.DS_Store

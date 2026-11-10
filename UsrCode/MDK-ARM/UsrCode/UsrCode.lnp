@@ -1,0 +1,26 @@
+--cpu Cortex-M3
+"usrcode\startup_stm32f103xb.o"
+"usrcode\main.o"
+"usrcode\gpio.o"
+"usrcode\usart.o"
+"usrcode\stm32f1xx_it.o"
+"usrcode\stm32f1xx_hal_msp.o"
+"usrcode\stm32f1xx_hal_gpio_ex.o"
+"usrcode\stm32f1xx_hal_tim.o"
+"usrcode\stm32f1xx_hal_tim_ex.o"
+"usrcode\stm32f1xx_hal_uart.o"
+"usrcode\stm32f1xx_hal.o"
+"usrcode\stm32f1xx_hal_rcc.o"
+"usrcode\stm32f1xx_hal_rcc_ex.o"
+"usrcode\stm32f1xx_hal_gpio.o"
+"usrcode\stm32f1xx_hal_dma.o"
+"usrcode\stm32f1xx_hal_cortex.o"
+"usrcode\stm32f1xx_hal_pwr.o"
+"usrcode\stm32f1xx_hal_flash.o"
+"usrcode\stm32f1xx_hal_flash_ex.o"
+"usrcode\stm32f1xx_hal_exti.o"
+"usrcode\system_stm32f1xx.o"
+--library_type=microlib --strict --scatter "UsrCode\UsrCode.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "UsrCode.map" -o UsrCode\UsrCode.axf
