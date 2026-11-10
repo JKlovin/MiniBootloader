@@ -1,0 +1,38 @@
+#ifndef BOOT_CFG_H
+#define BOOT_CFG_H
+
+#include <stdint.h>
+
+#define BOOT_FLASH_BASE       0x08000000UL
+#define BOOT_FLASH_TOTAL      0x00010000UL
+#define BOOT_FLASH_PAGE       0x00000400UL
+#define BOOT_FLASH_END        (BOOT_FLASH_BASE + BOOT_FLASH_TOTAL)
+
+#define BOOT_LOADER_BASE      0x08000000UL
+#define BOOT_LOADER_SIZE      0x00004000UL
+#define BOOT_APP_BASE         0x08004000UL
+#define BOOT_APP_SIZE         0x00006000UL
+#define BOOT_STAGE_BASE       0x0800A000UL
+#define BOOT_STAGE_SIZE       0x00005C00UL
+#define BOOT_META_BASE        0x0800FC00UL
+#define BOOT_META_SIZE        0x00000400UL
+
+#define BOOT_APP_END          (BOOT_APP_BASE + BOOT_APP_SIZE)
+#define BOOT_STAGE_END        (BOOT_STAGE_BASE + BOOT_STAGE_SIZE)
+#define BOOT_META_END         (BOOT_META_BASE + BOOT_META_SIZE)
+#define BOOT_MAX_IMAGE        BOOT_STAGE_SIZE
+
+#define BOOT_RAM_BASE         0x20000000UL
+#define BOOT_RAM_END          0x20005000UL
+#define BOOT_PACKAGE_MAGIC    0x31505542UL  /* 'BUP1' little endian */
+#define BOOT_PACKAGE_HEADER   24U
+#define BOOT_AUTOJUMP_MS      30000U
+
+#if (BOOT_APP_END != BOOT_STAGE_BASE) || \
+    (BOOT_STAGE_END != BOOT_META_BASE) || \
+    (BOOT_META_END != BOOT_FLASH_END) || \
+    (BOOT_LOADER_BASE + BOOT_LOADER_SIZE != BOOT_APP_BASE)
+#error "Boot partition layout is not contiguous"
+#endif
+
+#endif

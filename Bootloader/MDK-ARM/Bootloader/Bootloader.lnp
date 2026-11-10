@@ -20,8 +20,11 @@
 "bootloader\stm32f1xx_hal_flash_ex.o"
 "bootloader\stm32f1xx_hal_exti.o"
 "bootloader\system_stm32f1xx.o"
+"bootloader\boot_crc.o"
+"bootloader\boot_flash.o"
+"bootloader\boot_meta.o"
+"bootloader\boot_upgrade.o"
 "bootloader\bootloader.o"
-"bootloader\flash.o"
 --library_type=microlib --strict --scatter "Bootloader\Bootloader.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

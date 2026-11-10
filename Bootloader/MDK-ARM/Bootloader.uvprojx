@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc; ../Drivers/STM32F1xx_HAL_Driver/Inc; ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy; ../Drivers/CMSIS/Device/ST/STM32F1xx/Include; ../Drivers/CMSIS/Include; ..\Boot</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;..\Boot\Inc;..\Boot\Src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -611,14 +611,29 @@
           <GroupName>Boot</GroupName>
           <Files>
             <File>
-              <FileName>bootloader.c</FileName>
+              <FileName>boot_crc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Boot\bootloader.c</FilePath>
+              <FilePath>..\Boot\Src\boot_crc.c</FilePath>
             </File>
             <File>
-              <FileName>Flash.c</FileName>
+              <FileName>boot_flash.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Boot\Flash.c</FilePath>
+              <FilePath>..\Boot\Src\boot_flash.c</FilePath>
+            </File>
+            <File>
+              <FileName>boot_meta.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Boot\Src\boot_meta.c</FilePath>
+            </File>
+            <File>
+              <FileName>boot_upgrade.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Boot\Src\boot_upgrade.c</FilePath>
+            </File>
+            <File>
+              <FileName>bootloader.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Boot\Src\bootloader.c</FilePath>
             </File>
           </Files>
         </Group>

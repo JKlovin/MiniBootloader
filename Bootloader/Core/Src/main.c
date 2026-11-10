@@ -27,9 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "bootloader.h"
-#include "flash.h"
-
+#include "boot_upgrade.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,14 +60,6 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-static void Boot_Print(const char *Text);
-static void Boot_PrintHex16(uint16_t Value);
-static void Boot_PrintHex32(uint32_t Value);
-
-static void Boot_ShowMenu(void);
-static void Boot_ShowInfo(void);
-static void Boot_FlashDemo(void);
-
 /* USER CODE END 0 */
 
 /**
@@ -78,10 +68,7 @@ static void Boot_FlashDemo(void);
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-	uint8_t Command;
-  HAL_StatusTypeDef Status;
-	
+  /* USER CODE BEGIN 1 */	
 	/* 在 HAL 初始化之前获取复位标志 */
 	Boot_ResetFlags = RCC->CSR;
 
@@ -128,7 +115,7 @@ int main(void)
 	if (Boot_ResetFlags & RCC_CSR_PINRSTF)
 			printf("NRST Pin Reset\r\n");
 
-	Boot_ShowMenu();
+	Boot_Run(&huart1);
 	
   /* USER CODE END 2 */
 
@@ -136,50 +123,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		/* 等待串口输入一个字符 */
-		Status = HAL_UART_Receive(&huart1,&Command,1U,100U);
-
-		if (Status != HAL_OK)
-		{
-				continue;
-		}
-
-		switch (Command)
-		{
-				case 't':
-				case 'T':
-						Boot_FlashDemo();
-						break;
-				case 'j':
-				case 'J':
-						if (Boot_IsAppValid() != 0U)
-						{
-								Boot_Print("Jump to APP...\r\n");
-								JumpToApp();
-
-								/* 只有跳转失败才会返回 */
-						}
-						else
-						{
-								Boot_Print("APP Invalid!\r\n");
-						}
-						break;
-				case 'i':
-				case 'I':
-						Boot_ShowInfo();
-						break;
-				case 'h':
-				case 'H':
-						Boot_ShowMenu();
-						break;
-				case '\r':
-				case '\n':
-						break;
-				default:
-						Boot_Print("Unknown Command!\r\n");
-						break;
-		}
-		Boot_Print("\r\nCommand > ");
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -226,270 +169,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-/* =========================================================
- * 1. 串口发送字符串
- * ========================================================= */
-
-static void Boot_Print(const char *Text)
-{
-    uint16_t Length;
-
-    Length = (uint16_t)strlen(Text);
-
-    HAL_UART_Transmit(
-        &huart1,
-        (uint8_t *)Text,
-        Length,
-        HAL_MAX_DELAY
-    );
-}
-
-
-/* =========================================================
- * 2. 打印16位十六进制数
- * ========================================================= */
-
-static void Boot_PrintHex16(uint16_t Value)
-{
-    char Text[7] = "0x0000";
-    const char Hex[] = "0123456789ABCDEF";
-    uint32_t i;
-
-    for (i = 0U; i < 4U; i++)
-    {
-        Text[2U + i] =
-            Hex[(Value >> (12U - 4U * i)) & 0x0FU];
-    }
-
-    Boot_Print(Text);
-}
-
-
-/* =========================================================
- * 3. 打印32位十六进制数
- * ========================================================= */
-
-static void Boot_PrintHex32(uint32_t Value)
-{
-    char Text[11] = "0x00000000";
-    const char Hex[] = "0123456789ABCDEF";
-    uint32_t i;
-
-    for (i = 0U; i < 8U; i++)
-    {
-        Text[2U + i] =
-            Hex[(Value >> (28U - 4U * i)) & 0x0FU];
-    }
-
-    Boot_Print(Text);
-}
-
-
-/* =========================================================
- * 4. 显示串口菜单
- * ========================================================= */
-
-static void Boot_ShowMenu(void)
-{
-    Boot_Print("\r\n");
-    Boot_Print("========== BootloaderFlash ==========\r\n");
-    Boot_Print("t : Flash erase/write test\r\n");
-    Boot_Print("j : Jump to APP\r\n");
-    Boot_Print("i : Flash information\r\n");
-    Boot_Print("h : Show menu\r\n");
-    Boot_Print("=====================================\r\n");
-    Boot_Print("Command > ");
-}
-
-
-/* =========================================================
- * 5. 显示 Flash 分区信息
- * ========================================================= */
-
-static void Boot_ShowInfo(void)
-{
-    Boot_Print("\r\n[Flash Information]\r\n");
-
-    Boot_Print("Bootloader : ");
-    Boot_PrintHex32(0x08000000UL);
-    Boot_Print(" - ");
-    Boot_PrintHex32(0x08003FFFUL);
-    Boot_Print("\r\n");
-
-    Boot_Print("APP        : ");
-    Boot_PrintHex32(APP_FLASH_ADDR);
-    Boot_Print(" - ");
-    Boot_PrintHex32(APP_FLASH_END_ADDR - 1UL);
-    Boot_Print("\r\n");
-
-    Boot_Print("Test Area  : ");
-    Boot_PrintHex32(BOOT_TEST_FLASH_ADDR);
-    Boot_Print(" - ");
-    Boot_PrintHex32(BOOT_TEST_FLASH_END - 1UL);
-    Boot_Print("\r\n");
-
-    Boot_Print("APP Valid  : ");
-
-    if (Boot_IsAppValid() != 0U)
-    {
-        Boot_Print("YES\r\n");
-    }
-    else
-    {
-        Boot_Print("NO\r\n");
-    }
-}
-
-
-/* =========================================================
- * 6. Flash 擦除及写入测试
- * ========================================================= */
-static void Boot_FlashDemo(void)
-{
-    uint8_t Buffer[128];
-
-    uint8_t OddBuffer[5] =
-    {
-        0x11U,
-        0x22U,
-        0x33U,
-        0x44U,
-        0x55U
-    };
-
-    uint32_t i;
-    HAL_StatusTypeDef Status;
-
-    Boot_Print("\r\n[Flash Test Start]\r\n");
-
-    /* 1. 构造128字节测试数据 */
-    for (i = 0U; i < sizeof(Buffer); i++)
-    {
-        Buffer[i] = (uint8_t)(i ^ 0x5AU);
-    }
-
-    /* 2. 擦除测试区域 */
-    Status = Boot_FlashErase(
-        BOOT_TEST_FLASH_ADDR,
-        BOOT_TEST_FLASH_SIZE
-    );
-
-    if (Status != HAL_OK)
-    {
-        Boot_Print("Flash Erase FAIL!\r\n");
-        return;
-    }
-
-    Boot_Print("Flash Erase PASS!\r\n");
-
-    /* 3. 连续写入128字节 */
-    Status = Boot_FlashWrite(
-        BOOT_TEST_FLASH_ADDR,
-        Buffer,
-        sizeof(Buffer)
-    );
-
-    if (Status != HAL_OK)
-    {
-        Boot_Print("Flash Write FAIL!\r\n");
-        return;
-    }
-
-    Boot_Print("Flash Write PASS!\r\n");
-
-    /* 4. 读回验证128字节 */
-    Status = Boot_FlashVerify(
-        BOOT_TEST_FLASH_ADDR,
-        Buffer,
-        sizeof(Buffer)
-    );
-
-    if (Status != HAL_OK)
-    {
-        Boot_Print("Flash Verify FAIL!\r\n");
-        return;
-    }
-
-    Boot_Print("Flash Verify PASS!\r\n");
-
-    /* 5. 读取第一个半字 */
-    Boot_Print("First : ");
-
-    Boot_PrintHex16(
-        *(volatile uint16_t *)
-        BOOT_TEST_FLASH_ADDR
-    );
-
-    Boot_Print("\r\n");
-
-    /* 6. 读取最后一个半字 */
-    Boot_Print("Last  : ");
-
-    Boot_PrintHex16(
-        *(volatile uint16_t *)
-        (BOOT_TEST_FLASH_ADDR + 126U)
-    );
-
-    Boot_Print("\r\n");
-
-    /*
-     * 7. 测试奇数字节长度
-     *
-     * 使用偏移128字节的另一块已擦除空间，
-     * 避免覆盖前面的128字节测试数据。
-     */
-    Status = Boot_FlashWrite(
-        BOOT_TEST_FLASH_ADDR + 128U,
-        OddBuffer,
-        sizeof(OddBuffer)
-    );
-
-    if (Status != HAL_OK)
-    {
-        Boot_Print("Odd Write FAIL!\r\n");
-        return;
-    }
-
-    /* 8. 校验奇数字节 */
-    Status = Boot_FlashVerify(
-        BOOT_TEST_FLASH_ADDR + 128U,
-        OddBuffer,
-        sizeof(OddBuffer)
-    );
-
-    if (Status != HAL_OK)
-    {
-        Boot_Print("Odd Verify FAIL!\r\n");
-        return;
-    }
-
-    /* 9. 验证最后一个半字补FF */
-    if (*(volatile uint16_t *)
-        (BOOT_TEST_FLASH_ADDR + 132U) != 0xFF55U)
-    {
-        Boot_Print("Odd Padding FAIL!\r\n");
-        return;
-    }
-
-    Boot_Print("Odd Write PASS!\r\n");
-
-    /* 10. 检查 Bootloader 擦除保护 */
-    Status = Boot_FlashErase(
-        0x08000000UL,
-        1024U
-    );
-
-    if (Status != HAL_ERROR)
-    {
-        Boot_Print("Boot Protection FAIL!\r\n");
-        return;
-    }
-
-    Boot_Print("Boot Protection PASS!\r\n");
-
-    Boot_Print("[Flash Test Complete]\r\n");
-}
 
 /* USER CODE END 4 */
 
