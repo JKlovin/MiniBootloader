@@ -97,6 +97,8 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+	
+	/* 异常复位状态信息 */
 	printf("Reset Flags = 0x%08lX\r\n",
 				 (unsigned long)Boot_ResetFlags);
 

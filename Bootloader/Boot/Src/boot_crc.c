@@ -1,5 +1,6 @@
 #include "boot_crc.h"
 
+/* 计算CRC校验值 */
 uint32_t Boot_CRC32(const uint8_t *data, uint32_t len)
 {
     uint32_t crc = 0xFFFFFFFFUL, i;
